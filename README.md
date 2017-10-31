@@ -23,7 +23,7 @@ int_sat128_t;
 uint_sat128_t;
 ```
 
-Custom types can be declared by calling the universal template:
+Custom types can be created using the universal template:
 
 ```c++
 // Standard declaration: -128, …, 127
@@ -36,10 +36,12 @@ typedef xint_sat_t<int8_t, -127> custom1_t;
 typedef xint_sat_t<int8_t, 16, 32> custom2_t;
 ```
 
-Some notable features:
-    - Saturating signed and unsigned types can be mixed
+### Some notable features
 
-## Usage example
+- Saturating signed and unsigned types can be mixed
+- Customisable lower and upper bounds
+
+### Usage example
 
 ```c++
 #include <cstddef>
