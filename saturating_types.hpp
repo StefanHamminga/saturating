@@ -119,7 +119,9 @@ public:
                         : temp
                 };
             } else {
-                return { clamp(static_cast<next_up_t<UA, UB>>(a) + b) };
+                return {
+                    clamp(static_cast<next_up_t<T, UA, UB>>(a) + b)
+                };
             }
         }
     }
@@ -149,7 +151,17 @@ public:
                         : temp
                 };
             } else {
-                return { clamp(static_cast<next_up_t<UA, UB>>(a) - b) };
+                if constexpr (std::is_signed_v<type>) {
+                    return {
+                        clamp(static_cast<std::make_signed_t<next_up_t<UA, UB>>>(a) - b)
+                    };
+                } else {
+                    return {
+                        b > a
+                            ? 0
+                            : clamp(static_cast<next_up_t<UA, UB>>(a) - b)
+                    };
+                }
             }
         }
     }
@@ -271,11 +283,17 @@ public:
                                 ? min
                                 : static_cast<type>(val));
                 } else {
-                    return (val < min)
-                            ? min
-                            : (val > max
+                    if constexpr (std::is_unsigned_v<U> && min <= 0) {
+                        return val > max
                                 ? max
-                                : static_cast<type>(val));
+                                : static_cast<type>(val);
+                    } else {
+                        return (val < min) // This isn't working properly
+                                ? min
+                                : (val > max
+                                    ? max
+                                    : static_cast<type>(val));
+                    }
                 }
             }
         }
