@@ -314,7 +314,7 @@ public:
                 return { static_cast<type>(((static_cast<next_up_t<T>>(val) - min) * in_max / max) + min) };
             }
         } else {
-            if constexpr (static_cast<next_up_t<T, U>>(max) - min == static_cast<next_up_t<T, U>>(in_max) - in_min) {
+            if constexpr (static_cast<next_up_t<T>>(max) - min == static_cast<next_up_t<U>>(in_max) - in_min) {
                 // Range shift only
                 return { static_cast<type>(val + (static_cast<next_up_t<U>>(in_min) - min)) };
             }
