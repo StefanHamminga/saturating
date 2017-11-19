@@ -65,6 +65,10 @@ int main () {
 }
 ```
 
+### Tests
+
+Run `make check` to build and run the test program.
+
 ## License, author, contributors
 
 The saturated types library is written by [Stefan Hamminga](stefan@prjct.net), with contributions by [Toby Speight](https://codereview.stackexchange.com/questions/179172/c17-saturating-integer-arithmetic-type-library).
