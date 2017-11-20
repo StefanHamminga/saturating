@@ -2,6 +2,8 @@
 #include <cassert>
 #include "saturating_types.hpp"
 
+//TODO: Make a proper and complete test suite instead of this scratchpad
+
 using namespace std;
 
 template <typename T>
@@ -56,18 +58,28 @@ int main() {
         cout << "Clamping using `from()`: " << i16a1 << endl;
         cout << "Scaling using `scale_from()`: " << i16a2 << endl;
 
-        xint_sat_t<int, -1024, 1023> b { -640 };
+        x_sat_t<int, -1024, 1023> b { -640 };
         cout << "Scale 1:8: " << (int)b << " to " << (int)int_sat8_t::scale_from(b) << endl;
 
         // Inverting scales is possible, though I don't know why you should.
-        xint_sat_t<int16_t, 127, -128> c {4};
-        cout << "Inverting scale: " << (int)c << " to " << (int)int_sat8_t::scale_from(c) << endl;
+        x_sat_t<int16_t, 127, -128> c {4};
+        cout << "Inverted scale: " << (int)c << " to " << (int)int_sat8_t::scale_from(c) << endl;
 
-        auto scaled = int_sat8_t::scale_from(0.25f); // Uses defaults: -1 and 1
-        cout << "Converting a -1 to 1 ranged float, 0.25, to a saturating 8-bit int: " << (int)scaled << endl;
-        scaled = uint_sat8_t::scale_from(0.25f); // Uses defaults: 0 and 1
-        cout << "Converting a 0 to 1 ranged float, 0.25, to a saturating 8-bit uint: " << (int)scaled << endl;
+        float_sat_t f1 { 0.25f }; // Uses defaults: -1 and 1
+        x_sat_t<float, 0, 1> f2 { 0.25f };
+
+        auto scaled = int_sat8_t::scale_from(f1);
+        cout << "Converted a -1 to 1 ranged float, 0.25, to a saturating 8-bit int: " << (int)scaled << endl;
+        scaled = uint_sat8_t::scale_from(f2); // Uses defaults: 0 and 1
+        cout << "Converted a 0 to 1 ranged float, 0.25, to a saturating 8-bit uint: " << (int)scaled << endl;
         scaled = int_sat8_t::scale_from(0.25f, -1.5f, 1.5f); // Supply your own, integrals give better performance
-        cout << "Converting a -1.5 to 1.5 ranged float, 0.25, to a saturating 8-bit int: " << (int)scaled << endl;
+        cout << "Converted a -1.5 to 1.5 ranged float, 0.25, to a saturating 8-bit int: " << (int)scaled << endl;
+    }
+    {
+        int_sat8_t a {10};
+        float f = 0.001;
+        cout << "Divided 8-bit int " << (int)a << " by " << f << ": " << (int)(a / f) << endl;
+        f = -0.001;
+        cout << "Divided 8-bit int " << (int)a << " by " << f << ": " << (int)(a / f) << endl;
     }
 }
