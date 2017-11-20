@@ -9,6 +9,10 @@
  *   returning saturated types.
  *
  * TODO: Further test and improve algorithms (type combination specific optimizations)
+ * TODO: Add non-static functions
+ * TODO: Add member `scale_to` function
+ * TODO: See if there is any way to allow non integral limits for floating point based types
+ * TODO: Verify floating point based types
  */
 
 #pragma once
@@ -48,6 +52,8 @@ namespace {
         template <> struct _next_up<8, true>  { typedef __int128_t  type; };
         template <> struct _next_up<8, false> { typedef __uint128_t type; };
 #endif
+        template <size_t S, bool B>
+        using _next_up_t = typename _next_up<S, B>::type;
     }
 
     /**
@@ -55,8 +61,10 @@ namespace {
      * One or more types can be supplied, if any type is signed a signed type will be returned.
      */
     template <typename... T> struct next_up {
-        static_assert((std::is_integral_v<std::decay_t<T>> && ...) == true, "next_up works only on integral types");
-        typedef typename _next_up<max(sizeof(std::decay_t<T>)...), (std::is_signed_v<std::decay_t<T>> || ...)>::type type;
+        // For floating point there's no need to increase the resolution, but we do need to fit the largest type.
+        typedef std::conditional_t<(std::is_floating_point_v<T> || ...),
+                                    std::common_type_t<T...>,
+                                    _next_up_t<max(sizeof(std::decay_t<T>)...), (std::is_signed_v<std::decay_t<T>> || ...)>> type;
     };
 
     /**
@@ -69,26 +77,26 @@ namespace {
 
 /** Base template for a saturating integer or unsigned integer. */
 template <typename T,
-          std::enable_if_t<!std::is_const_v<T>, std::decay_t<T>>   min = std::numeric_limits<T>::lowest(),
-          std::enable_if_t<std::is_integral_v<T>, std::decay_t<T>> max = std::numeric_limits<T>::max()>
-class xint_sat_t {
+          std::enable_if_t<!std::is_const_v<T>,    std::conditional_t<std::is_integral_v<T>, std::decay_t<T>, int>> min = std::numeric_limits<T>::lowest(),
+          std::enable_if_t<!std::is_volatile_v<T>, std::conditional_t<std::is_integral_v<T>, std::decay_t<T>, int>> max = std::numeric_limits<T>::max()>
+class x_sat_t {
 public:
     typedef std::decay_t<T> type;
 
-    static const type min_val = min;
-    static const type max_val = max;
+    static constexpr type min_val = min;
+    static constexpr type max_val = max;
 
     /** Create a new zero-initialized saturated type. */
-    constexpr xint_sat_t() noexcept : value{0} {}
+    constexpr x_sat_t() noexcept : value{0} {}
 
     /**
      * Create a new saturating type based on a given value.
      * @param  val Initial value will *NOT* be clamped to fit `T` (use `from()`).
      */
     template <typename U>
-    constexpr xint_sat_t(const U& val) noexcept : value{ static_cast<type>(val) } {}
+    constexpr x_sat_t(const U& val) noexcept : value{ static_cast<type>(val) } {}
     ///TODO: Fix constructing with explicit
-    // constexpr explicit xint_sat_t(const U& val) noexcept : value{ static_cast<type>(val) } {}
+    // constexpr explicit x_sat_t(const U& val) noexcept : value{ static_cast<type>(val) } {}
 
     /** Conversion back to the base type */
     constexpr operator const T&() const noexcept { return value; }
@@ -102,11 +110,19 @@ public:
      */
     template <typename UA, typename UB>
     static constexpr
-    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, xint_sat_t>
+    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, x_sat_t>
     __attribute__((pure))
     add(const UA& a, const UB& b) noexcept {
         if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-            return { clamp(a + b) };
+            if constexpr (std::is_floating_point_v<type>) {
+                return {
+                    clamp(static_cast<type>(a) + static_cast<type>(b))
+                };
+            } else {
+                return {
+                    clamp(static_cast<std::common_type_t<UA, UB>>(a) + static_cast<std::common_type_t<UA, UB>>(b))
+                };
+            }
         } else {
             if constexpr (min == std::numeric_limits<type>::lowest() &&
                           max == std::numeric_limits<type>::max() &&
@@ -134,11 +150,19 @@ public:
      */
     template <typename UA, typename UB>
     static constexpr
-    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, xint_sat_t>
+    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, x_sat_t>
     __attribute__((pure))
     subtract(const UA& a, const UB& b) noexcept {
         if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-            return { clamp(a - b) };
+            if constexpr (std::is_floating_point_v<type>) {
+                return {
+                    clamp(static_cast<type>(a) - static_cast<type>(b))
+                };
+            } else {
+                return {
+                    clamp(static_cast<std::common_type_t<UA, UB>>(a) - static_cast<std::common_type_t<UA, UB>>(b))
+                };
+            }
         } else {
             if constexpr (min == std::numeric_limits<type>::lowest() &&
                           max == std::numeric_limits<type>::max() &&
@@ -174,11 +198,19 @@ public:
      */
     template <typename UA, typename UB>
     static constexpr
-    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, xint_sat_t>
+    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, x_sat_t>
     __attribute__((pure))
     multiply(const UA& a, const UB& b) noexcept {
         if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-            return { clamp(a * b) };
+            if constexpr (std::is_floating_point_v<type>) {
+                return {
+                    clamp(static_cast<type>(a) * static_cast<type>(b))
+                };
+            } else {
+                return {
+                    clamp(static_cast<std::common_type_t<UA, UB>>(a) * static_cast<std::common_type_t<UA, UB>>(b))
+                };
+            }
         } else {
             if constexpr (min == std::numeric_limits<type>::lowest() &&
                           max == std::numeric_limits<type>::max() &&
@@ -187,11 +219,11 @@ public:
                 type temp = 0;
                 return {
                     __builtin_mul_overflow(static_cast<type>(a), static_cast<type>(b), &temp)
-                        ? (a < 0 == b < 0 ? max : min)
+                        ? (((a < 0) == (b < 0)) ? max : min)
                         : temp
                 };
             } else {
-                return { clamp(static_cast<next_up_t<UA, UB>>(a) * b) };
+                return { clamp(static_cast<next_up_t<std::decay_t<UA>, std::decay_t<UB>>>(a) * b) };
             }
         }
     }
@@ -204,11 +236,19 @@ public:
      */
     template <typename UA, typename UB>
     static constexpr
-    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, xint_sat_t>
+    std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, x_sat_t>
     __attribute__((pure))
     divide(const UA& a, const UB& b) noexcept {
         if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-            return { clamp(a / b) };
+            if constexpr (std::is_floating_point_v<type>) {
+                return {
+                    clamp(static_cast<type>(a) / static_cast<type>(b))
+                };
+            } else {
+                return {
+                    clamp(static_cast<std::common_type_t<UA, UB>>(a) / static_cast<std::common_type_t<UA, UB>>(b))
+                };
+            }
         } else {
             if constexpr (sizeof(type) >= sizeof(UA)) {
                 return { static_cast<type>(a / b) };
@@ -223,7 +263,7 @@ public:
         return *this;
     }
     constexpr auto operator++(int) noexcept {
-        xint_sat_t<type, min, max> temp { value };
+        x_sat_t<type, min, max> temp { value };
         if (value < max - 1) ++value;
         return temp;
     }
@@ -233,7 +273,7 @@ public:
         return *this;
     }
     constexpr auto operator--(int) noexcept {
-        xint_sat_t<type, min, max> temp { value };
+        x_sat_t<type, min, max> temp { value };
         if (value > min + 1) --value;
         return temp;
     }
@@ -245,7 +285,7 @@ public:
     template <typename U> constexpr decltype(auto) __attribute__((pure)) operator*(const U& other) const noexcept { return multiply(value, other); }
     template <typename U> constexpr decltype(auto) __attribute__((pure)) operator/(const U& other) const noexcept { return divide(value, other); }
 
-    template <typename U> constexpr xint_sat_t __attribute__((pure)) operator%(const U& other) const noexcept { return value % other; }
+    template <typename U> constexpr x_sat_t __attribute__((pure)) operator%(const U& other) const noexcept { return value % other; }
 
     template <typename U> constexpr auto& operator+=(const U& other) noexcept { value = add(value, other); return *this; }
     template <typename U> constexpr auto& operator-=(const U& other) noexcept { value = subtract(value, other); return *this; }
@@ -261,9 +301,9 @@ public:
         if constexpr (std::is_floating_point_v<U>) {
             auto temp = val;
             if (temp > 0) {
-                temp += 0.5f;
+                temp += static_cast<U>(0.5);
             } else  if (temp < 0) {
-                temp -= 0.5f;
+                temp -= static_cast<U>(0.5);
             }
             return (temp < min)
                     ? min
@@ -299,13 +339,35 @@ public:
         }
     }
 
+    /**
+     * Create a new instance of this type, it's value being `val` clamped to fit `min` and `max`.
+     * @param  val Initial value
+     * @return     Saturating type with initial value clamped.
+     */
     template <typename U>
-    static constexpr xint_sat_t from(const U& val) noexcept {
+    static constexpr x_sat_t __attribute__((pure)) from(const U& val) noexcept {
         return { clamp(val) };
     }
 
-    template <typename U, U in_min, U in_max>
-    static constexpr xint_sat_t __attribute__((pure)) scale_from(const xint_sat_t<U, in_min, in_max>& val) noexcept {
+    /**
+     * Scale the value of another saturating type to this one.
+     * @param  val Saturating type
+     * @return     Reference to this instance
+     */
+    template <typename U>
+    constexpr auto& scale_from(const U& val) noexcept { value = x_sat_t::scale_from(val); return *this; }
+
+    /**
+     * Convert one saturating type to another, scaling the value.
+     * @param  val Saturating type
+     * @return     New saturating type
+     */
+    template <typename U,
+              std::conditional_t<std::is_floating_point_v<U>, int, std::decay_t<U>> in_min,
+              std::conditional_t<std::is_floating_point_v<U>, int, std::decay_t<U>> in_max,
+              typename DISCARD = void>
+    static constexpr x_sat_t __attribute__((pure))
+    scale_from(const x_sat_t<U, in_min, in_max>& val) noexcept {
         if constexpr (static_cast<std::common_type_t<type, std::decay_t<U>>>(min) == static_cast<std::common_type_t<type, std::decay_t<U>>>(in_min)) {
             if constexpr (static_cast<std::common_type_t<type, std::decay_t<U>>>(max) == static_cast<std::common_type_t<type, std::decay_t<U>>>(in_max)) {
                 return { static_cast<type>(val) };
@@ -328,24 +390,33 @@ public:
             }
         }
     }
+
     template <typename U, typename V>
-    static constexpr std::enable_if_t<std::is_floating_point_v<U> & std::is_floating_point_v<V>, xint_sat_t>
+    static constexpr std::enable_if_t<std::is_floating_point_v<U> & std::is_floating_point_v<V>, x_sat_t>
     __attribute__((pure))
-    scale_from(const U& val, const V& in_min, const V& in_max) noexcept {
+    scale_from(const U& val,
+               const V& in_min,
+               const V& in_max) noexcept
+    {
         auto temp = (val - in_min) *
                     (static_cast<next_up_t<T>>(max) - min) /
                     (in_max - in_min) + min;
         return { static_cast<type>(temp + 0.5f) };
     }
-    template <typename U, typename V = int>
-    static constexpr std::enable_if_t<std::is_floating_point_v<U> && std::is_integral_v<V>, xint_sat_t>
-    __attribute__((pure)) /**TODO: Starting the range for unsigned values from 0 instead of -1 feels optimal, at the cost of complex default behaviour */
-    scale_from(const U& val, const V& in_min = std::is_signed_v<type> ? -1 : 0, const V& in_max = 1) noexcept {
-        auto temp = (val - in_min) *
-                    (static_cast<next_up_t<T>>(max) - min) /
-                    (static_cast<next_up_t<T>>(in_max) - in_min) + min;
-        return { static_cast<type>(temp + 0.5f) };
-    }
+
+    // template <typename U, typename V = int>
+    // static constexpr std::enable_if_t<std::is_floating_point_v<U> && std::is_integral_v<V>, x_sat_t>
+    // __attribute__((pure)) /**TODO: Starting the range for unsigned values from 0 instead of -1 feels optimal, at the cost of complex default behaviour */
+    // scale_from(const U& val,
+    //            const V& in_min = std::is_signed_v<type> ? -1 : 0,
+    //            const V& in_max = 1) noexcept
+    // {
+    //     auto temp = (val - in_min) *
+    //                 (static_cast<next_up_t<T>>(max) - min) /
+    //                 (static_cast<next_up_t<T>>(in_max) - in_min) + min;
+    //     return { static_cast<type>(temp + 0.5f) };
+    // }
+
 private:
     T value;
 };
@@ -353,33 +424,38 @@ private:
 namespace std {
     // Extend the standard type traits to handle the new sat types.
     template <typename T, T _min, T _max>
-    class decay<xint_sat_t<T, _min, _max>> {
+    class decay<x_sat_t<T, _min, _max>> {
     public:
         typedef typename decay<T>::type type;
     };
 
     template <typename T, T _min, T _max>
-    struct is_unsigned<xint_sat_t<T, _min, _max>> {
+    struct is_unsigned<x_sat_t<T, _min, _max>> {
         static constexpr decltype(auto) value = is_unsigned_v<std::decay_t<T>>;
     };
 
     template <typename T, T _min, T _max>
-    struct is_signed<xint_sat_t<T, _min, _max>> {
+    struct is_signed<x_sat_t<T, _min, _max>> {
         static constexpr decltype(auto) value = is_signed_v<std::decay_t<T>>;
     };
 
     template <typename T, T _min, T _max>
-    struct is_integral<xint_sat_t<T, _min, _max>> {
+    struct is_integral<x_sat_t<T, _min, _max>> {
         static constexpr decltype(auto) value = is_integral_v<std::decay_t<T>>;
     };
 
     template <typename T, T _min, T _max>
-    struct is_arithmetic<xint_sat_t<T, _min, _max>> {
+    struct is_floating_point<x_sat_t<T, _min, _max>> {
+        static constexpr decltype(auto) value = is_floating_point_v<std::decay_t<T>>;
+    };
+
+    template <typename T, T _min, T _max>
+    struct is_arithmetic<x_sat_t<T, _min, _max>> {
         static constexpr decltype(auto) value = is_arithmetic_v<std::decay_t<T>>;
     };
 
     template <typename T, T _min, T _max>
-    class numeric_limits<xint_sat_t<T, _min, _max>> {
+    class numeric_limits<x_sat_t<T, _min, _max>> {
         // TODO: implement the rest of: http://en.cppreference.com/w/cpp/types/numeric_limits
     public:
         static constexpr std::decay_t<T> min()    noexcept { return _min; }
@@ -388,19 +464,22 @@ namespace std {
     };
 }
 
-typedef xint_sat_t<int8_t>   int_sat8_t;
-typedef xint_sat_t<uint8_t>  uint_sat8_t;
+typedef x_sat_t<int8_t>   int_sat8_t;
+typedef x_sat_t<uint8_t>  uint_sat8_t;
 
-typedef xint_sat_t<int16_t>  int_sat16_t;
-typedef xint_sat_t<uint16_t> uint_sat16_t;
+typedef x_sat_t<int16_t>  int_sat16_t;
+typedef x_sat_t<uint16_t> uint_sat16_t;
 
-typedef xint_sat_t<int32_t>  int_sat32_t;
-typedef xint_sat_t<uint32_t> uint_sat32_t;
+typedef x_sat_t<int32_t>  int_sat32_t;
+typedef x_sat_t<uint32_t> uint_sat32_t;
 
-typedef xint_sat_t<int64_t>  int_sat64_t;
-typedef xint_sat_t<uint64_t> uint_sat64_t;
+typedef x_sat_t<int64_t>  int_sat64_t;
+typedef x_sat_t<uint64_t> uint_sat64_t;
 
 #ifdef __SIZEOF_INT128__
-typedef xint_sat_t<__int128_t>  int_sat128_t;
-typedef xint_sat_t<__uint128_t> uint_sat128_t;
+typedef x_sat_t<__int128_t>  int_sat128_t;
+typedef x_sat_t<__uint128_t> uint_sat128_t;
 #endif
+
+typedef x_sat_t<float,  -1, 1> float_sat_t;
+typedef x_sat_t<double, -1, 1> double_sat_t;
