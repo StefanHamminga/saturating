@@ -4,12 +4,12 @@ For a quick introduction to saturation arithmetic take a look at the [Wikipedia]
 
 ## Description
 
-The library features two entry points: [`functions.hpp`](https://github.com/StefanHamminga/saturating/functions.hpp) and [`types.hpp`](https://github.com/StefanHamminga/saturating/types.hpp).
+The library features two entry points: [`functions.hpp`](https://github.com/StefanHamminga/saturating/blob/master/functions.hpp) and [`types.hpp`](https://github.com/StefanHamminga/saturating/blob/master/types.hpp).
 
 ### functions.hpp
 The functions header provides the namespace `saturating` containing `add`, `subtract`, `multiply`, and `divide`, each taking two arguments and returning a _plain_ value of a type that can fit either argument. Simplified this comes down to a combination of promotion to signed or floating point, and increasing the type size. The library aims to remove as many type conversions pitfalls as possible. This includes avoiding unintended `int` => `unsigned` promotions and properly rounding floating point results back to integrals.
 
-Several smaller utility functions are provided in the namespace, for a quick overview check [`utilities.hpp`](https://github.com/StefanHamminga/saturating/utilities.hpp)
+Several smaller utility functions are provided in the namespace, for a quick overview check [`utilities.hpp`](https://github.com/StefanHamminga/saturating/blob/master/utilities.hpp)
 
 ### types.hpp
 
