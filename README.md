@@ -1,14 +1,25 @@
-# C++ saturating types
-C++ header only library for always saturating types.
+# C++ saturating arithmetic functions and types
+C++ header only library for always saturating functions and types.
 For a quick introduction to saturation arithmetic take a look at the [Wikipedia](https://en.wikipedia.org/wiki/Saturation_arithmetic) page.
-
-
 
 ## Description
 
-This library provides the following default integral types:
+The library features two entry points: [`functions.hpp`](https://github.com/StefanHamminga/saturating/functions.hpp) and [`types.hpp`](https://github.com/StefanHamminga/saturating/types.hpp).
 
-```c++
+### functions.hpp
+The functions header provides the namespace `saturating` containing `add`, `subtract`, `multiply`, and `divide`, each taking two arguments and returning a _plain_ value of a type that can fit either argument. Simplified this comes down to a combination of promotion to signed or floating point, and increasing the type size. The library aims to remove as many type conversions pitfalls as possible. This includes avoiding unintended `int` => `unsigned` promotions and properly rounding floating point results back to integrals.
+
+Several smaller utility functions are provided in the namespace, for a quick overview check [`utilities.hpp`](https://github.com/StefanHamminga/saturating/utilities.hpp)
+
+### types.hpp
+
+This header includes the above functions header and extends this to provide the `saturating::type` template class, allowing to create automatically saturating types. The types use saturating operators by default, but returning saturating types where possible, allowing saturation to be respected throughout a chain of operations.
+
+Several `std` namespaced functions, like `std::is_arithmetic` or `std::numeric_limits<T>` are specialized to integrate saturating types more seamlessly.
+
+The following default integral types are introduced to the global namespace:
+
+```cpp
 int_sat8_t;
 uint_sat8_t;
 
@@ -24,41 +35,69 @@ uint_sat64_t;
 // If 128 bit integers are supported:
 int_sat128_t;
 uint_sat128_t;
-```
 
-And the these default floating point types:
+// And these floating point types, if their primitives are available:
 
-```c++
 float_sat_t;
 double_sat_t;
+long_double_sat_t;
 ```
+
+This functionality can be disabled by defining `SATURATING_TYPES_h_NO_GLOBALS`.
 
 Custom types can be created using the universal template:
 
-```c++
+```cpp
 // Standard declaration: -128, …, 127
-typedef x_sat_t<int8_t> int_sat8_t;
+typedef saturating::type<int8_t> int_sat8_t;
 
 // Custom lower limit: -127, …, 127
-typedef x_sat_t<int8_t, -127> custom1_t;
+typedef saturating::type<int8_t, -127> custom1_t;
 
 // Custom limit: 16, …, 32
-typedef x_sat_t<int8_t, 16, 32> custom2_t;
+typedef saturating::type<int8_t, 16, 32> custom2_t;
+
+// Floating points have a default -1 … 1 range, but can take any integral limits
+typedef saturating::type<double, -10, 10> custom3_t;
+
 ```
 
-### Some notable features
+## Dependencies
 
-- Saturating signed and unsigned types can be mixed and scaled
-- Customisable lower and upper bounds
-- Optimized functions are chosen compile-time
-- Static functions can be used to create and scale on the fly
+Other than a modern C++17 compiler this library depends on:
 
-### Usage example
+- [arithmetic_type_tools](https://github.com/StefanHamminga/arithmetic_type_tools) - Tools used to manage the required type upgrades.
+- [cpp_lib_scripts](https://github.com/StefanHamminga/cpp_lib_scripts) - Automate building and installation.
 
-```c++
+## Usage example
+
+If you want to install the libraries systems wide (Linux) do:
+
+```bash
+git clone https://github.com/StefanHamminga/saturating saturating
+cd saturating
+mkdir build
+cd build/
+
+cmake -DCMAKE_INSTALL_PREFIX=/usr ..
+
+# Optionally run the tests
+make check
+
+sudo make install
+
+# Libraries are now available as:
+# #include <saturating/functions.hpp>
+# or
+# #include <saturating/types.hpp>
+```
+
+A small example C++ source:
+
+```cpp
 #include <cstddef>
 #include <cstdint>
-#include "saturating_types.hpp"
+#include "saturating/types.hpp"
 
 uint8_t x[] { 101, 27, 3, 95 };
 
@@ -85,4 +124,4 @@ This work is released under the terms of the Apache 2.0 license. The complete te
 
 ## Repository
 
-[saturating_types (GitHub)](https://github.com/StefanHamminga/saturating_types)
+[saturating (GitHub)](https://github.com/StefanHamminga/saturating)

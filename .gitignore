@@ -30,4 +30,11 @@
 *.exe
 *.out
 *.app
-test
+
+# GCC Coverage output
+*.gcno
+*.gcov
+*.gcda
+
+build/*
+doc/*
