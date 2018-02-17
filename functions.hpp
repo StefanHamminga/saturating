@@ -96,6 +96,50 @@ namespace saturating {
     }
 
     /**
+     * Add @param{val} to @param{out}, returning if overflow occured.
+     * @param  out Ouput variable
+     * @param  val Value to add
+     * @param  MIN Custom overflow minimum (always integral)
+     * @param  MAX Custom overflow maximum (always integral)
+     * @return     Overflow?
+     */
+    template <typename T, typename U>
+    constexpr bool add_to(T& out,
+                          const U& val,
+                          std::conditional_t<std::is_floating_point_v<T>, int, T> MIN = std::is_floating_point_v<T> ? (int)-1 : std::numeric_limits<T>::lowest(),
+                          std::conditional_t<std::is_floating_point_v<T>, int, T> MAX = std::is_floating_point_v<T> ?  (int)1 : std::numeric_limits<T>::max())
+    {
+        if constexpr (std::is_floating_point_v<T>) {
+            out += static_cast<std::decay_t<T>>(val);
+            if (out > MAX) {
+                out = MAX;
+                return true;
+            } else if (out < MIN) {
+                out = MIN;
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            if constexpr (MIN == std::numeric_limits<T>::lowest() &&
+                          MAX == std::numeric_limits<T>::max() &&
+                          std::is_same_v<T, fit_all_t<T, U>>)
+            {
+                if (__builtin_add_overflow(out, static_cast<T>(val), &out)) {
+                    if constexpr (std::is_unsigned_v<U>) {
+                        out = MAX;
+                    } else {
+                        out = static_cast<T>(val) > out ? MAX : MIN;
+                    }
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+    }
+
+    /**
      * Subtract `b` from `a` and return a new saturating type.
      * @param  a Left hand side of operator
      * @param  b Right hand side of operator
@@ -213,151 +257,4 @@ namespace saturating {
     constexpr void multiply(const UA& a, const UB& b, T& out) noexcept { out = multiply<T>(a, b); }
     template <typename UA, typename UB, typename T>
     constexpr void divide(const UA& a, const UB& b, T& out) noexcept { out = divide<T>(a, b); }
-
-    // static constexpr
-    // std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, type>
-    // __attribute__((const))
-    // subtract(const UA& a, const UB& b) noexcept {
-    //     using TO = next_up_t<UA, UB>;
-    //     if constexpr (std::is_floating_point_v<value_type>) {
-    //         if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-    //             return { minmax(MIN, a - b, MAX) };
-    //         } else {
-    //             return { minmax(MIN, static_cast<TO>(a) - b, MAX) };
-    //         }
-    //     } else {
-    //         if constexpr (std::is_floating_point_v<UA>) {
-    //             if constexpr (std::is_floating_point_v<UB>) {
-    //                 return { minmax(MIN, round<T>(a - b), MAX) };
-    //             } else {
-    //                 return subtract(round<T>(a), b);
-    //             }
-    //         } else {
-    //             if constexpr (std::is_floating_point_v<UB>) {
-    //                 return subtract(a, round<T>(b));
-    //             } else {
-    //                 return {
-    //                     minmax(MIN, static_cast<TO>(a) - static_cast<TO>(b), MAX)
-    //                 };
-    //             }
-    //         }
-    //     }
-    //
-    //     // if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-    //     //     if constexpr (std::is_floating_point_v<value_type>) {
-    //     //         return {
-    //     //             clamp(a - b)
-    //     //         };
-    //     //     } else {
-    //     //         return {
-    //     //             clamp(round<T>(a - b))
-    //     //         };
-    //     //     }
-    //     // } else { // Both arguments and our base type are integral
-    //     //     return {
-    //     //         clamp(static_cast<next_up_t<UA, UB>>(a) - static_cast<fit_all_t<UA, UB>>(b))
-    //     //     };
-    //     //     // if constexpr (MIN == std::numeric_limits<value_type>::lowest() &&
-    //     //     //               MAX == std::numeric_limits<value_type>::max() &&
-    //     //     //               std::is_signed_v<value_type> == std::is_signed_v<UA> &&
-    //     //     //               std::is_signed_v<value_type> == std::is_signed_v<UB> &&
-    //     //     //               sizeof(value_type) >= sizeof(UA) &&
-    //     //     //               sizeof(value_type) >= sizeof(UB))
-    //     //     // {
-    //     //     //     type temp = 0;
-    //     //     //     return {
-    //     //     //         __builtin_sub_overflow(static_cast<value_type>(a), static_cast<value_type>(b), &temp)
-    //     //     //             ? (b > a ? MIN : MAX)
-    //     //     //             : temp
-    //     //     //     };
-    //     //     // } else {
-    //     //     //     if constexpr (std::is_signed_v<value_type> || std::is_signed_v<UA> || std::is_signed_v<UB>) {
-    //     //     //         return {
-    //     //     //             clamp(static_cast<std::make_signed_t<next_up_t<UA, UB>>>(a) - b)
-    //     //     //         };
-    //     //     //     } else {
-    //     //     //         return {
-    //     //     //             b > a
-    //     //     //                 ? 0
-    //     //     //                 : clamp(static_cast<next_up_t<UA, UB>>(a) - b)
-    //     //     //         };
-    //     //     //     }
-    //     //     // }
-    //     // }
-    // }
-    //
-    // /**
-    //  * Multiply `a` with `b` and return a new saturating type.
-    //  * @param  a Left hand side of operator
-    //  * @param  b Right hand side of operator
-    //  * @return   New saturating type
-    //  */
-    // template <typename UA, typename UB>
-    // static constexpr
-    // std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, type>
-    // __attribute__((const))
-    // multiply(const UA& a, const UB& b) noexcept {
-    //     if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-    //         if constexpr (std::is_floating_point_v<value_type>) {
-    //             return {
-    //                 clamp(a * b)
-    //             };
-    //         } else {
-    //             return {
-    //                 clamp(round<T>(a * b))
-    //             };
-    //         }
-    //     } else {
-    //         // if constexpr (MIN == std::numeric_limits<value_type>::lowest() &&
-    //         //               MAX == std::numeric_limits<value_type>::max() &&
-    //         //               std::is_signed_v<value_type> == std::is_signed_v<UA> &&
-    //         //               std::is_signed_v<value_type> == std::is_signed_v<UB> &&
-    //         //               sizeof(value_type) >= sizeof(UA) &&
-    //         //               sizeof(value_type) >= sizeof(UB))
-    //         // {
-    //         //     type temp = 0;
-    //         //     return {
-    //         //         __builtin_mul_overflow(static_cast<value_type>(a), static_cast<value_type>(b), &temp)
-    //         //             ? ((a < 0) == (b < 0)
-    //         //                     ? MAX
-    //         //                     : MIN)
-    //         //             : temp
-    //         //     };
-    //         // } else {
-    //             return {
-    //                 clamp(static_cast<next_up_t<UA, UB>>(a) * b)
-    //             };
-    //         // }
-    //     }
-    // }
-    //
-    // /**
-    //  * Divide `a` by `b` and return a new saturating type.
-    //  * @param  a Left hand side of operator
-    //  * @param  b Right hand side of operator
-    //  * @return   New saturating type
-    //  */
-    // template <typename UA, typename UB>
-    // static constexpr
-    // std::enable_if_t<std::is_arithmetic_v<UA> && std::is_arithmetic_v<UB>, type>
-    // __attribute__((const))
-    // divide(const UA& a, const UB& b) noexcept {
-    //     if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-    //         if constexpr (std::is_floating_point_v<value_type>) {
-    //             return {
-    //                 clamp(static_cast<value_type>(a) / static_cast<value_type>(b))
-    //             };
-    //         } else {
-    //             return {
-    //                 clamp(static_cast<fit_all_t<UA, UB>>(a) / static_cast<fit_all_t<UA, UB>>(b))
-    //             };
-    //         }
-    //     } else {
-    //         if constexpr (sizeof(value_type) >= sizeof(UA)) {
-    //             return { static_cast<value_type>(a / b) };
-    //         } else {
-    //             return { clamp(a / b) };
-    //         }
-    //     }
-    // }
 } // namespace saturating

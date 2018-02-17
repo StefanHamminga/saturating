@@ -12,32 +12,11 @@
 namespace saturating {
     using namespace arithmetic_type_tools;
 
-    // In case of mixed types don't screw up the comparison
-    template <typename U1, typename U2,
-              typename UC = fit_all_t<U1, U2>>
-    constexpr UC __attribute__((const))
-    max(const U1 val1, const U2 val2) noexcept {
-        return static_cast<UC>(val1) > static_cast<UC>(val2)
-                        ? static_cast<UC>(val1)
-                        : static_cast<UC>(val2);
-    }
-
-    // In case of mixed types don't screw up the comparison
-    template <typename U1, typename U2,
-              typename UC = fit_all_t<U1, U2>>
-    constexpr UC __attribute__((const))
-    min(const U1 val1, const U2 val2) noexcept {
-        return static_cast<UC>(val1) < static_cast<UC>(val2)
-                        ? static_cast<UC>(val1)
-                        : static_cast<UC>(val2);
-    }
-
     template <typename U1, typename U2, typename U3>
     constexpr decltype(auto)
     minmax(const U1& _min, const U2& val, const U3& _max) noexcept {
         return max(_min, min(val, _max));
     }
-
 
     template <typename Tout, typename Tin>
     constexpr decltype(auto) __attribute__((const))
