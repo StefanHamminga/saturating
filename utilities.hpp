@@ -10,13 +10,11 @@
 #include <arithmetic_type_tools/arithmetic_type_tools.hpp>
 
 namespace saturating {
-    using namespace arithmetic_type_tools;
-
-    template <typename U1, typename U2, typename U3>
-    constexpr decltype(auto)
-    minmax(const U1& _min, const U2& val, const U3& _max) noexcept {
-        return max(_min, min(val, _max));
-    }
+    using arithmetic_type_tools::min;
+    using arithmetic_type_tools::max;
+    using arithmetic_type_tools::clamp;
+    using arithmetic_type_tools::fit_all_t;
+    using arithmetic_type_tools::next_up_t;
 
     template <typename Tout, typename Tin>
     constexpr decltype(auto) __attribute__((const))

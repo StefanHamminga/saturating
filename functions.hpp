@@ -33,7 +33,7 @@ namespace saturating {
     add(const UA& a, const UB& b) noexcept {
         if constexpr (std::is_floating_point_v<T>) {
             if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-                return static_cast<std::decay_t<T>>(minmax(MIN, a + b, MAX));
+                return static_cast<std::decay_t<T>>(clamp(MIN, a + b, MAX));
             } else {
                 using TC = fit_all_t<UA, UB>;
                 if constexpr (MIN == std::numeric_limits<TC>::lowest() && MAX == std::numeric_limits<TC>::max()) {
@@ -53,23 +53,23 @@ namespace saturating {
                     }
                 } else {
                     using TO = next_up_t<TC>;
-                    return static_cast<std::decay_t<T>>(minmax(MIN, static_cast<TO>(a) + static_cast<TO>(b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, static_cast<TO>(a) + static_cast<TO>(b), MAX));
                 }
             }
         } else {
             if constexpr (std::is_floating_point_v<UA>) {
                 if constexpr (std::is_floating_point_v<UB>) {
-                    return static_cast<std::decay_t<T>>(minmax(MIN, round<T>(a + b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, round<T>(a + b), MAX));
                 } else {
                     const auto temp = round<T>(a);
                     using TO = next_up_t<fit_all_t<UB, decltype(temp)>>;
-                    return static_cast<std::decay_t<T>>(minmax(MIN, static_cast<TO>(temp) + static_cast<TO>(b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, static_cast<TO>(temp) + static_cast<TO>(b), MAX));
                 }
             } else {
                 if constexpr (std::is_floating_point_v<UB>) {
                     const auto temp = round<T>(b);
                     using TO = next_up_t<fit_all_t<UA, decltype(temp)>>;
-                    return static_cast<std::decay_t<T>>(minmax(MIN, static_cast<TO>(a) + static_cast<TO>(temp), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, static_cast<TO>(a) + static_cast<TO>(temp), MAX));
                 } else {
                     if constexpr (MIN == std::numeric_limits<T>::lowest() && MAX == std::numeric_limits<T>::max() && std::is_same_v<T, fit_all_t<T, UA, UB>>) {
                         T temp = 0;
@@ -88,7 +88,7 @@ namespace saturating {
                         }
                     } else {
                         using TO = next_up_t<fit_all_t<UA, UB>>;
-                        return static_cast<std::decay_t<T>>(minmax(MIN, static_cast<TO>(a) + static_cast<TO>(b), MAX));
+                        return static_cast<std::decay_t<T>>(clamp(MIN, static_cast<TO>(a) + static_cast<TO>(b), MAX));
                     }
                 }
             }
@@ -162,22 +162,22 @@ namespace saturating {
         using TO = next_up_t<fit_all_t<UA, UB>>;
         if constexpr (std::is_floating_point_v<T>) {
             if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-                return minmax(MIN, a - b, MAX);
+                return clamp(MIN, a - b, MAX);
             } else {
-                return minmax(MIN, static_cast<TO>(a) - b, MAX);
+                return clamp(MIN, static_cast<TO>(a) - b, MAX);
             }
         } else {
             if constexpr (std::is_floating_point_v<UA>) {
                 if constexpr (std::is_floating_point_v<UB>) {
-                    return static_cast<std::decay_t<T>>(minmax(MIN, round<T>(a - b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, round<T>(a - b), MAX));
                 } else {
-                    return static_cast<std::decay_t<T>>(minmax(MIN, round<T>(a - b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, round<T>(a - b), MAX));
                 }
             } else {
                 if constexpr (std::is_floating_point_v<UB>) {
-                    return static_cast<std::decay_t<T>>(minmax(MIN, round<T>(a - b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, round<T>(a - b), MAX));
                 } else {
-                    return static_cast<std::decay_t<T>>(minmax(MIN, static_cast<TO>(a) - static_cast<TO>(b), MAX));
+                    return static_cast<std::decay_t<T>>(clamp(MIN, static_cast<TO>(a) - static_cast<TO>(b), MAX));
                 }
             }
         }
@@ -200,22 +200,22 @@ namespace saturating {
         using TO = next_up_t<fit_all_t<UA, UB>>;
         if constexpr (std::is_floating_point_v<T>) {
             if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
-                return minmax(MIN, a * b, MAX);
+                return clamp(MIN, a * b, MAX);
             } else {
-                return minmax(MIN, static_cast<TO>(a) * b, MAX);
+                return clamp(MIN, static_cast<TO>(a) * b, MAX);
             }
         } else {
             if constexpr (std::is_floating_point_v<UA>) {
                 if constexpr (std::is_floating_point_v<UB>) {
-                    return minmax(MIN, round<T>(a * b), MAX);
+                    return clamp(MIN, round<T>(a * b), MAX);
                 } else {
-                    return minmax(MIN, round<T>(a * b), MAX);
+                    return clamp(MIN, round<T>(a * b), MAX);
                 }
             } else {
                 if constexpr (std::is_floating_point_v<UB>) {
-                    return minmax(MIN, round<T>(a * b), MAX);
+                    return clamp(MIN, round<T>(a * b), MAX);
                 } else {
-                    return minmax(MIN, static_cast<TO>(a) * static_cast<TO>(b), MAX);
+                    return clamp(MIN, static_cast<TO>(a) * static_cast<TO>(b), MAX);
                 }
             }
         }
@@ -238,12 +238,12 @@ namespace saturating {
         using TO = next_up_t<fit_all_t<UA, UB>>;
         if constexpr (std::is_floating_point_v<UA> || std::is_floating_point_v<UB>) {
             if constexpr (std::is_floating_point_v<T>) {
-                return static_cast<std::decay_t<T>>(minmax(MIN, a / b, MAX));
+                return static_cast<std::decay_t<T>>(clamp(MIN, a / b, MAX));
             } else {
-                return static_cast<std::decay_t<T>>(minmax(MIN, round<T>(a / b), MAX));
+                return static_cast<std::decay_t<T>>(clamp(MIN, round<T>(a / b), MAX));
             }
         } else {
-            return static_cast<std::decay_t<T>>(minmax(MIN, ((a < 0) ^ (b < 0)) ? ((a - b/2)/b) : ((a + b/2)/b), MAX));
+            return static_cast<std::decay_t<T>>(clamp(MIN, ((a < 0) ^ (b < 0)) ? ((a - b/2)/b) : ((a + b/2)/b), MAX));
         }
     }
 

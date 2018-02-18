@@ -216,9 +216,9 @@ namespace saturating {
                     if constexpr (static_cast<fit_all_t<type, std::decay_t<U>>>(MAX) == static_cast<fit_all_t<type, std::decay_t<U>>>(in_max)) {
                         return { static_cast<value_type>((val * (static_cast<next_up_t<T>>(MAX) - MIN))/(MAX - in_min)) };
                     } else {
-                        auto temp = (static_cast<next_up_t<fit_all<T, U>>>(val) - in_min) *
-                                    (static_cast<next_up_t<fit_all<T, U>>>(MAX) - MIN) /
-                                    (static_cast<next_up_t<fit_all<T, U>>>(in_max) - in_min) + MIN + 1; // 1 for integer rounding
+                        auto temp = (static_cast<next_up_t<fit_all_t<T, U>>>(val) - in_min) *
+                                    (static_cast<next_up_t<fit_all_t<T, U>>>(MAX) - MIN) /
+                                    (static_cast<next_up_t<fit_all_t<T, U>>>(in_max) - in_min) + MIN + 1; // 1 for integer rounding
                         return { static_cast<value_type>(temp) };
                     }
                 }
