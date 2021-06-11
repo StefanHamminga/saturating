@@ -54,8 +54,15 @@ namespace saturating {
 
         /** Create a new zero-initialized saturated type. */
         constexpr type() noexcept : value{0} {}
-
-        constexpr type(const value_type& val) noexcept : value{val} {}
+        
+        template <typename U>
+        constexpr type(const U& val) noexcept
+            : value{
+                MAX < val ? MAX :
+                val < MIN ? MIN :
+                            static_cast<value_type>(val)
+              }
+        {}
 
         /**
          * Create a new saturating type based on a given value.
